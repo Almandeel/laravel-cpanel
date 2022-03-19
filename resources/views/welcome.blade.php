@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>كاشير كواليتي</title>
+    <title>{{ env('APP_NAME') }}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.3/css/font-awesome.css">
 
@@ -86,18 +86,15 @@
     <div class="container-fluid px-1 py-5 mx-auto">
         <div class="row d-flex justify-content-center">
             <div class="col-xl-7 col-lg-8 col-md-9 col-11 text-center">
-                <h3>كاشير كواليتي</h3>
-                <p class="blue-text">
-                    انشا كاشيرك الخاص
-                </p>
+                <h3>{{ env('APP_NAME') }}</h3>
                 <div class="card">
                     <form class="form-card" action="{{ route('initialize.pos') }}" method="POST">
                         @csrf
                         <div class="row justify-content-between text-right">
                             <div class="form-group col-sm-12 flex-column d-flex"> <label
-                                    class="form-control-label px-3">اسم الكاشير <span class="text-danger">
+                                    class="form-control-label px-3">اسم الدومين <span class="text-danger">
                                         *</span></label> <input type="text" required id="fname" name="domain"
-                                    placeholder="اسم الكاشير" onblur="validate(1)"> </div>
+                                    placeholder="اسم الدومين" onblur="validate(1)"> </div>
                         </div>
                         <div class="row justify-content-end">
                             <div class="form-group col-sm-12"> <button type="submit"
