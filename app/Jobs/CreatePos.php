@@ -19,7 +19,7 @@ class CreatePos implements ShouldQueue
 
     /**
      * Create a new job instance.
-     *
+     *        
      * @return void
      */
     public $sub_domain;
@@ -40,7 +40,7 @@ class CreatePos implements ShouldQueue
         $this->cpanel_home = env('CPANEL_HOME');                // "/home/your_cpanel_name"
         $this->cpanel_profix = env('CPANEL_PREFIX');            // *_
         $this->user_database_data = $this->cpanel_profix . $this->sub_domain;
-        $this->database_file_path = public_path('');            // your_database_name.sql
+        $this->database_file_path = public_path( env('DATABASE_FILE_PATH'));            // your_database_name.sql
         $this->composer_path = env('CPANEL_COMPOSER_PATH');     // /opt/cpanel/..../composer
         $this->composer_home = env('CPANEL_COMPOSER_HOME');     // /home/your_cpanel_name/.composer
         $this->github_repository = env('GITHUB_REPOSITORY');    // github_repository
@@ -60,9 +60,50 @@ class CreatePos implements ShouldQueue
         if(File::exists($this->cpanel_home . $path)) {
             return "false";
         }
+        
+        $path = $this->cpanel_home . $path;
+        
+        info($path);
+        
 
+        $clone_process = Process::fromShellCommandline('git clone '. $this->github_repository . ' ' . $path)->setTimeout(30);
+        $clone_process->run();
+        info("clone done", [$clone_process->getErrorOutput()]);
+
+        
+
+        if(!File::copy($path . '/' . ".env.example", $path . '/' . ".env")) {
+            return false;
+        }
+
+        $text = Str::of(file_get_contents($path . '/.env'))
+        ->replace("APP_NAME=Laravel", "APP_NAME=\"". $this->sub_domain ."\"")
+        ->replace("DB_DATABASE=laravel", "DB_DATABASE=" . $this->user_database_data)
+        ->replace("DB_USERNAME=root", "DB_USERNAME=" . $this->user_database_data)
+        ->replace("APP_KEY=", "APP_KEY=base64:ssXAVnlUwKl4Bz2E6Fit903WnCkkImqUBAfoHmxbwb0=")
+        ->replace("DB_PASSWORD=", "DB_PASSWORD=testTest@12345678")->__toString();
+
+        
+        File::replace($path . '/.env', $text);
+        
+        info(".env done");
+        
+        chdir($path);
+
+        $vendor_process = Process::fromShellCommandline( $this->composer_path . " install --no-progress -n", null, ['COMPOSER_HOME' => $this->composer_home])->setTimeout(300);
+        $vendor_process->run();
+
+        info("vendor done", [$vendor_process->getErrorOutput()]);
+        
+        
+        $path = $this->cpanel_project_dir . $this->sub_domain;
+        
+        $path = $this->cpanel_home . $path;
+        
+        chdir($path);
+        
         info("create subdomain");
-        $sub_domain_return  = $cpanel->createSubDomain($this->sub_domain, $this->cpanel_domain, $this->cpanel_project_dir);
+        $sub_domain_return  = $cpanel->createSubDomain($this->sub_domain, $this->cpanel_domain, $path);
         info($sub_domain_return);
 
         info("create database");
@@ -76,43 +117,11 @@ class CreatePos implements ShouldQueue
         info("all allpriveleges to user");
         $set_allprivileges = $cpanel->setAllPrivilegesOnDatabase($this->user_database_data, $this->user_database_data);
         info($set_allprivileges);
-
-        $path = $this->cpanel_home . $path;
-
-        info($path);
-
-        $clone_process = Process::fromShellCommandline('git clone '. $this->github_repository . ' ' . $path)->setTimeout(30);
-        $clone_process->run();
-        info("clone done", [$clone_process->getErrorOutput()]);
-
-        sleep(10);
-
-        chdir($path);
-        
-
-        if(!File::copy($path . '/' . ".env.example", $path . '/' . ".env")) {
-            return false;
-        }
-
-        $text = Str::of(file_get_contents($path . '/.env'))
-        ->replace("APP_NAME=", "APP_NAME=\"". $this->sub_domain ."\"")
-        ->replace("DB_DATABASE=laravel", "DB_DATABASE=" . $this->user_database_data)
-        ->replace("DB_USERNAME=root", "DB_USERNAME=" . $this->user_database_data)
-        ->replace("APP_KEY=", "APP_KEY=base64:ssXAVnlUwKl4Bz2E6Fit903WnCkkImqUBAfoHmxbwb0=")
-        ->replace("DB_PASSWORD=", "DB_PASSWORD=testTest@12345678")->__toString();
-
-        
-        File::replace($path . '/.env', $text);
-        
-        info(".env done");
-
-        $vendor_process = Process::fromShellCommandline( $this->composer_path . " install --no-progress -n", null, ['COMPOSER_HOME' => $this->composer_home])->setTimeout(300);
-        $vendor_process->run();
-
-        info("vendor done", [$vendor_process->getErrorOutput()]);
         
         
-        $sql = public_path($this->database_file_path);
+        $sql = $this->database_file_path;
+        
+        info($sql);
 
         $db = [
             'username' => $this->user_database_data,
@@ -122,6 +131,8 @@ class CreatePos implements ShouldQueue
         ];
 
         exec("mysql --user={$db['username']} --password={$db['password']} --host={$db['host']} --database {$db['database']} < $sql");
+        info("database created");
+        
 
         return ;
     }
